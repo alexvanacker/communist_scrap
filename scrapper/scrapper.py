@@ -214,9 +214,15 @@ def get_all_urls_from_cat(category_param):
                               'lettre=',
                               param])
         logger.debug('Letter url: %s', letter_url)
-        all_letter_pages = get_all_pages_from_letter_page(letter_url)
-        for l in all_letter_pages:
-            cat_urls.extend(extract_list_urls_from_list_page(l))
+        try:
+            all_letter_pages = get_all_pages_from_letter_page(letter_url)
+            for l in all_letter_pages:
+                cat_urls.extend(extract_list_urls_from_list_page(l))
+        except:
+            logger.error('Could not extract URLs for parameter: %s'
+                         'and letter %s' %
+                         (category_param, letter))
+            raise
 
     return cat_urls
 
