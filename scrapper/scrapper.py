@@ -259,10 +259,14 @@ def extract_list_urls_from_list_page(page_url):
     """
     soup = make_soup(page_url)
     list_articles = soup.find(class_='liste-articles')
-    list_ul = list_articles.ul
-    links = list_ul.find_all('a')
-    urls = [l['href'] for l in links]
-    return urls
+    if list_articles is not None:
+        list_ul = list_articles.ul
+        links = list_ul.find_all('a')
+        urls = [l['href'] for l in links]
+        return urls
+    else:
+        # No articles
+        return []
 
 
 def crawl(home_url):
