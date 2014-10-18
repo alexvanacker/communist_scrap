@@ -236,15 +236,20 @@ def get_all_pages_from_letter_page(page_url):
     debut_articles_values = []
     # Get all page URLs, paginated by 30
     # FInd the last page first:
-    last_page_url = soup.find_all(class_='lien_pagination')[-1]['href']
-    split = last_page_url.split('articles=')
-    last_page = split[1].split('#')[0]
-    start = 0
-    last_page_int = int(last_page)
-    all_nbr = range(start, last_page_int + 1)
-    url_start = page_url + '&debut_articles='
-    debut_articles_values.extend([url_start+str(x) for x in all_nbr[::30]])
-    return debut_articles_values
+    all_pages_links = soup.find_all(class_='lien_pagination')
+    if len(all_pages_links) > 0:
+        last_page_url = all_pages_links[-1]['href']
+        split = last_page_url.split('articles=')
+        last_page = split[1].split('#')[0]
+        start = 0
+        last_page_int = int(last_page)
+        all_nbr = range(start, last_page_int + 1)
+        url_start = page_url + '&debut_articles='
+        debut_articles_values.extend([url_start+str(x) for x in all_nbr[::30]])
+        return debut_articles_values
+    else:
+        # No pages, only one, which we return
+        return [page_url]
 
 
 def extract_list_urls_from_list_page(page_url):
