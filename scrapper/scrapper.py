@@ -5,6 +5,7 @@ import string
 import requests
 import time
 import re
+import pickle
 from nltk import word_tokenize
 import logging
 import logging.config
@@ -169,7 +170,7 @@ def extract_info_from_first_para(para_text):
 
 
 def get_categories_dict():
-    ''' Returns dictionary linking categories to their URLs'''
+    ''' Returns dictionary linking categories to their URL params'''
 
     # Will contain a dict of the form:
     # Type -> {display -> URL}
@@ -187,33 +188,46 @@ def get_categories_dict():
         list_items = t.find_all('li')
         types_dicos[type_title] = {}
         for item in list_items:
-            link = item.a['href']
+            link = item.a['href'].replace('spip.php?', '')
             item_name = item.string
             types_dicos[type_title][item_name] = link
 
-    print types_dicos
+    return types_dicos
 
 
-def get_all_names_from_cat(category_param):
+def get_all_urls_from_cat(category_param):
     """ Given a category URL param,
     returns the list of urls for all names in it.
     """
     # to get by letter, add parameter: &lettre=^[aA]
-
+    logger.info('Extracting URLs for category parameter: %s',
+                category_param)
+    cat_urls = []
     for letter in string.lowercase:
         # Make parameter
         upper = letter.upper()
         param = '^['+letter+upper+']'
-        params = {category_param: '', 'lettre': param}
-        letter_soup = make_soup(search_url, params=params)
+        letter_url = ''.join([search_url,
+                              '?',
+                              category_param,
+                              '&',
+                              'lettre=',
+                              param])
+        logger.debug('Letter url: %s', letter_url)
+        all_letter_pages = get_all_pages_from_letter_page(letter_url)
+        for l in all_letter_pages:
+            cat_urls.extend(extract_list_urls_from_list_page(l))
+
+    return cat_urls
 
 
+def get_all_pages_from_letter_page(page_url):
+    """ Returns list of URLs for all the pages
+    for the given letter URL.
+    """
+    soup = make_soup(page_url)
 
-def extract_all_names_from_letter(page_url):
-    url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?mot23&lettre=^[aA]'
-    soup = make_soup(url)
-
-    page_urls = []
+    debut_articles_values = []
     # Get all page URLs, paginated by 30
     # FInd the last page first:
     last_page_url = soup.find_all(class_='lien_pagination')[-1]['href']
@@ -222,8 +236,22 @@ def extract_all_names_from_letter(page_url):
     start = 0
     last_page_int = int(last_page)
     all_nbr = range(start, last_page_int + 1)
-    page_urls.extend([str(x) for x in all_nbr[::30]])
-    
+    url_start = page_url + '&debut_articles='
+    debut_articles_values.extend([url_start+str(x) for x in all_nbr[::30]])
+    return debut_articles_values
+
+
+def extract_list_urls_from_list_page(page_url):
+    """ Extracts URLs from a page with a list of URLs
+
+    page_url -- URL of the page with the list of links
+    """
+    soup = make_soup(page_url)
+    list_articles = soup.find(class_='liste-articles')
+    list_ul = list_articles.ul
+    links = list_ul.find_all('a')
+    urls = [l['href'] for l in links]
+    return urls
 
 
 def crawl(home_url):
@@ -231,6 +259,17 @@ def crawl(home_url):
 
     Each URL has a dict to link an epoch, theme, or place
     '''
+    final_dict = {}
     cat_dict = get_categories_dict()
-    for t in cat_dict.keys():
-        pass
+    for cat in cat_dict.keys():
+        for subcat in cat_dict[cat].keys():
+            #TODO: add check on pickle! If exists, then skip!
+            urls = get_all_urls_from_cat(cat_dict[cat][subcat])
+            logger.info('For %s , number of persons: %s' % (subcat, len(urls)))
+            for url in urls:
+                if url in final_dict:
+                    final_dict[url].append[subcat]
+                else:
+                    final_dict[url] = [subcat]
+
+            pickle.dump(urls, open('comm_urls_'+subcat))
