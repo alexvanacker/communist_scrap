@@ -11,7 +11,10 @@ import logging
 import logging.config
 from bs4 import BeautifulSoup
 from bs4 import FeatureNotFound
+from threading import Thread
 
+# Max number of concurrent accesses to the server
+concurrent_limit = 5
 
 charset = 'iso-8859-1'
 parser_lxml = "lxml"
@@ -220,7 +223,7 @@ def get_all_urls_from_cat(category_param):
                 cat_urls.extend(extract_list_urls_from_list_page(l))
         except:
             logger.error('Could not extract URLs for parameter: %s'
-                         'and letter %s' %
+                         ' and letter: %s' %
                          (category_param, letter))
             raise
 
@@ -263,10 +266,13 @@ def extract_list_urls_from_list_page(page_url):
         list_ul = list_articles.ul
         links = list_ul.find_all('a')
         try:
-            urls = [l['href'] for l in links]
+            # Yeah, because it's always nice to find <a> tags without
+            # hrefs...
+            urls = [l['href'] for l in links if 'href' in l.attrs.keys()]
+            return urls
         except:
-            logger.error('Error getting HREF from %s', str(links))
-        return urls
+            logger.error('Error getting href from %s', page_url)
+            raise
     else:
         # No articles
         return []
