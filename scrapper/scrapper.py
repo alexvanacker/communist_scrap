@@ -292,8 +292,8 @@ def crawl(home_url):
                 logger.info('Already extracted %s, skipping', subcat)
             else:
                 urls = get_all_urls_from_cat(cat_dict[cat][subcat])
-                logger.info('For %s , number of persons: %s',
-                            (subcat, len(urls)))
+                logger.info('For %s , number of persons: %s' %
+                            (subcat, str(len(urls))))
                 for url in urls:
                     if url in final_dict:
                         final_dict[url].append[subcat]
