@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import os
 import string
 import requests
 import time
@@ -262,7 +262,10 @@ def extract_list_urls_from_list_page(page_url):
     if list_articles is not None:
         list_ul = list_articles.ul
         links = list_ul.find_all('a')
-        urls = [l['href'] for l in links]
+        try:
+            urls = [l['href'] for l in links]
+        except:
+            logger.error('Error getting HREF from %s', str(links))
         return urls
     else:
         # No articles
@@ -278,13 +281,17 @@ def crawl(home_url):
     cat_dict = get_categories_dict()
     for cat in cat_dict.keys():
         for subcat in cat_dict[cat].keys():
-            #TODO: add check on pickle! If exists, then skip!
-            urls = get_all_urls_from_cat(cat_dict[cat][subcat])
-            logger.info('For %s , number of persons: %s' % (subcat, len(urls)))
-            for url in urls:
-                if url in final_dict:
-                    final_dict[url].append[subcat]
-                else:
-                    final_dict[url] = [subcat]
+            pickle_file = 'comm_urls_'+subcat+'.p'
+            if os.path.exists(pickle_file):
+                logger.info('Already extracted %s, skipping', subcat)
+            else:
+                urls = get_all_urls_from_cat(cat_dict[cat][subcat])
+                logger.info('For %s , number of persons: %s',
+                            (subcat, len(urls)))
+                for url in urls:
+                    if url in final_dict:
+                        final_dict[url].append[subcat]
+                    else:
+                        final_dict[url] = [subcat]
 
-            pickle.dump(urls, open('comm_urls_'+subcat+'.p', 'wb'))
+                pickle.dump(urls, open('comm_urls_'+subcat+'.p', 'wb'))
