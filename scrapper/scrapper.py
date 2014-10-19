@@ -5,7 +5,7 @@ import string
 import requests
 import time
 import re
-import pickle
+import cPickle as pickle
 from nltk import word_tokenize
 import logging
 import logging.config
@@ -287,4 +287,4 @@ def crawl(home_url):
                 else:
                     final_dict[url] = [subcat]
 
-            pickle.dump(urls, open('comm_urls_'+subcat))
+            pickle.dump(urls, open('comm_urls_'+subcat+'.p', 'wb'))
