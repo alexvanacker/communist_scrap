@@ -42,6 +42,11 @@ def test_get_cat():
     scrapper.get_categories_dict()
 
 
+def test_extract_list_url_from_letter():
+    url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?mot3&lettre=^[nN]&debut_articles=330'
+    print str(scrapper.extract_list_urls_from_list_page(url))
+
+
 def test_crawl():
     scrapper.crawl('http://maitron-en-ligne.univ-paris1.fr')
     # url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?mot23&lettre=^[aA]'
@@ -50,4 +55,5 @@ def test_crawl():
 
 
 if __name__ == '__main__':
+    #test_extract_list_url_from_letter()
     test_crawl()

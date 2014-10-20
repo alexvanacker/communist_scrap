@@ -230,6 +230,44 @@ def get_all_urls_from_cat(category_param):
     return cat_urls
 
 
+def get_all_urls_from_cat_multithread(category_param):
+    """ Given a category URL param,
+    returns the list of urls for all names in it.
+    """
+    # to get by letter, add parameter: &lettre=^[aA]
+    logger.info('Extracting URLs for category parameter: %s',
+                category_param)
+    cat_urls = []
+    for letter in string.lowercase:
+        get_letter_urls(letter, category_param)
+
+    return cat_urls
+
+
+def get_letter_urls(letter, category_param):
+    # Make parameter
+    letter_urls = []
+    upper = letter.upper()
+    param = '^['+letter+upper+']'
+    letter_url = ''.join([search_url,
+                          '?',
+                          category_param,
+                          '&',
+                          'lettre=',
+                          param])
+    logger.debug('Letter url: %s', letter_url)
+    try:
+        all_letter_pages = get_all_pages_from_letter_page(letter_url)
+        for l in all_letter_pages:
+            letter_urls.extend(extract_list_urls_from_list_page(l))
+        return letter_urls
+    except:
+        logger.error('Could not extract URLs for parameter: %s'
+                     ' and letter: %s' %
+                     (category_param, letter))
+        raise
+
+
 def get_all_pages_from_letter_page(page_url):
     """ Returns list of URLs for all the pages
     for the given letter URL.
