@@ -11,7 +11,7 @@ import logging
 import logging.config
 from bs4 import BeautifulSoup
 from bs4 import FeatureNotFound
-from multiprocessing import Queue, Process
+from multiprocessing.dummy import Pool as ThreadPool
 
 # Max number of concurrent accesses to the server
 concurrent_limit = 5
@@ -198,86 +198,58 @@ def get_categories_dict():
     return types_dicos
 
 
-def get_all_urls_from_cat(category_param):
+def get_all_urls_from_cat_multithread(category_param, nb_threads=concurrent_limit):
     """ Given a category URL param,
     returns the list of urls for all names in it.
     """
     # to get by letter, add parameter: &lettre=^[aA]
     logger.info('Extracting URLs for category parameter: %s',
                 category_param)
-    cat_urls = []
-    for letter in string.lowercase:
-        # Make parameter
-        upper = letter.upper()
-        param = '^['+letter+upper+']'
-        letter_url = ''.join([search_url,
-                              '?',
-                              category_param,
-                              '&',
-                              'lettre=',
-                              param])
-        logger.debug('Letter url: %s', letter_url)
-        try:
-            all_letter_pages = get_all_pages_from_letter_page(letter_url)
-            for l in all_letter_pages:
-                cat_urls.extend(extract_list_urls_from_list_page(l))
-        except:
-            logger.error('Could not extract URLs for parameter: %s'
-                         ' and letter: %s' %
-                         (category_param, letter))
-            raise
 
-    return cat_urls
+    letters = string.lowercase
+    pool = ThreadPool(nb_threads)
+    try:
+        # Lambda function for multiprocessing
+        get_url_func = lambda x: get_letter_urls(x, category_param)
+        results = pool.map(get_url_func, letters)
+        pool.close()
+        pool.join()
+        # Results is a list of lists, make only one list
+        urls = [url for l in results for url in l]
+        return urls
+    except KeyboardInterrupt:
+        pool.terminate()
 
 
-def get_all_urls_from_cat_multithread(category_param):
-    """ Given a category URL param,
-    returns the list of urls for all names in it.
+def get_letter_urls(letter, category_param):
+    """ Returns list of URLs for a given letter and category parameter
+
+    letter -- letter in lowercase
+    category_param -- URL parameter for a category
     """
-    # to get by letter, add parameter: &lettre=^[aA]
-    logger.info('Extracting URLs for category parameter: %s',
-                category_param)
-    url_queue = Queue()
-    letters_queue = Queue()
-    for letter in string.lowercase:
-        letters_queue.put(letter)
+    # Make parameter
+    letter_urls = []
+    upper = letter.upper()
+    param = '^['+letter+upper+']'
+    letter_url = ''.join([search_url,
+                          '?',
+                          category_param,
+                          '&',
+                          'lettre=',
+                          param])
+    logger.debug('Letter url: %s', letter_url)
+    try:
+        all_letter_pages = get_all_pages_from_letter_page(letter_url)
+        for l in all_letter_pages:
+            letter_urls.extend(extract_list_urls_from_list_page(l))
 
-    while(letters_queue.qsize > 0):
-        Process(target=get_letter_urls_multithread,
-                args=(letters_queue, category_param, url_queue)).start()
-        Process(target=get_letter_urls_multithread,
-                args=(letters_queue, category_param, url_queue)).start()
+        return letter_urls
 
-    print str(url_queue)
-
-
-def get_letter_urls_multithread(letters_queue, category_param, url_queue):
-    while letters_queue.qsize() > 0:
-        letter = letters_queue.get()
-        # Make parameter
-        letter_urls = []
-        upper = letter.upper()
-        param = '^['+letter+upper+']'
-        letter_url = ''.join([search_url,
-                              '?',
-                              category_param,
-                              '&',
-                              'lettre=',
-                              param])
-        logger.debug('Letter url: %s', letter_url)
-        try:
-            all_letter_pages = get_all_pages_from_letter_page(letter_url)
-            for l in all_letter_pages:
-                letter_urls.extend(extract_list_urls_from_list_page(l))
-
-            for l in letter_urls:
-                url_queue.put(l)
-
-        except:
-            logger.error('Could not extract URLs for parameter: %s'
-                         ' and letter: %s' %
-                         (category_param, letter))
-            raise
+    except:
+        logger.error('Could not extract URLs for parameter: %s'
+                     ' and letter: %s' %
+                     (category_param, letter))
+        raise
 
 
 def get_all_pages_from_letter_page(page_url):
@@ -341,7 +313,7 @@ def crawl(home_url):
             if os.path.exists(pickle_file):
                 logger.info('Already extracted %s, skipping', subcat)
             else:
-                urls = get_all_urls_from_cat(cat_dict[cat][subcat])
+                urls = get_all_urls_from_cat_multithread(cat_dict[cat][subcat])
                 logger.info('For %s , number of persons: %s' %
                             (subcat, str(len(urls))))
                 for url in urls:

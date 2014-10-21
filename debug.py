@@ -4,6 +4,7 @@ from scrapper import scrapper
 import os
 import json
 import logging.config
+import time
 
 
 def setup_logging(
@@ -49,7 +50,25 @@ def test_extract_list_url_from_letter():
 
 def test_multithread():
     param = 'mot3'
-    scrapper.get_all_urls_from_cat_multithread(param)
+    result = scrapper.get_all_urls_from_cat_multithread(param)
+    print str(result)
+
+
+def bench():
+    param = 'mot3'
+    start = time.time()
+    scrapper.get_all_urls_from_cat(param)
+    end = time.time()
+    result = (end - start)
+    print 'Single thread: %s' % str(result)
+
+    threads = [2, 4, 5, 8, 10]
+    for x in threads:
+        start = time.time()
+        scrapper.get_all_urls_from_cat_multithread(param, nb_threads=x)
+        end = time.time()
+        total_seconds = (end - start)
+        print 'Threads: %s: %s' % (str(x), str(total_seconds))
 
 
 def test_crawl():
@@ -61,5 +80,4 @@ def test_crawl():
 
 if __name__ == '__main__':
     #test_extract_list_url_from_letter()
-    #test_crawl()
-    test_multithread()
+    test_crawl()
