@@ -40,12 +40,7 @@
         "scrapper": {
             "level": "DEBUG",
             "handlers": ["console"],
-            "propagate": "yes"
+            "propagate": "no"
         }
-    },
-
-    "root": {
-        "level": "INFO",
-        "handlers": ["console"]
     }
 }
