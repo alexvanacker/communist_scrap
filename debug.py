@@ -47,6 +47,11 @@ def test_extract_list_url_from_letter():
     print str(scrapper.extract_list_urls_from_list_page(url))
 
 
+def test_multithread():
+    param = 'mot3'
+    scrapper.get_all_urls_from_cat_multithread(param)
+
+
 def test_crawl():
     scrapper.crawl('http://maitron-en-ligne.univ-paris1.fr')
     # url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?mot23&lettre=^[aA]'
@@ -56,4 +61,5 @@ def test_crawl():
 
 if __name__ == '__main__':
     #test_extract_list_url_from_letter()
-    test_crawl()
+    #test_crawl()
+    test_multithread()
