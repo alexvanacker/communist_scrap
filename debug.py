@@ -29,9 +29,10 @@ def setup_logging(
 setup_logging()
 
 
-
 test_urls = ['http://maitron-en-ligne.univ-paris1.fr/spip.php?article16337',
-             'http://maitron-en-ligne.univ-paris1.fr/spip.php?article23962']
+             'http://maitron-en-ligne.univ-paris1.fr/spip.php?article23962',
+             'http://maitron-en-ligne.univ-paris1.fr/spip.php?article9733'
+             ]
 
 
 def debug_infos():
@@ -80,4 +81,5 @@ def test_crawl():
 
 if __name__ == '__main__':
     #test_extract_list_url_from_letter()
-    test_crawl()
+    #test_crawl()
+    debug_infos()

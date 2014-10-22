@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import os
 import string
 import requests
@@ -55,7 +56,7 @@ def make_soup(url, params=None):
 
     contents = r.content
 
-    soup = BeautifulSoup(contents, parser)
+    soup = BeautifulSoup(contents, parser, from_encoding='iso-8859-1')
     return soup
 
 
@@ -101,32 +102,46 @@ def extract_infos(url, soup=None):
     # Make one string only
     full_name = ''.join(map(unicode, nom_notice.contents))
 
-    # Now parse:
-    #LAST_NAME First_name [LAST_NAME, first_name_1, ... <em> first_name </em>]
-    in_brackets = full_name.split('[')[1]
-    # Relace <em>
-    in_brackets = in_brackets.replace('<em>', '').replace('</em>', '')
-    # And split
-    names = map(lambda x: x.replace(',', ''), in_brackets.split(' '))
-    # Cleanup: remove empty string
-    while '' in names:
-        names.remove('')
+    if '[' in full_name:
+        # Now parse:
+        #LAST_NAME First_name [LAST_NAME, first_name_1, ... <em> first_name </em>]
+        in_brackets = full_name.split('[')[1]
+        # Relace <em>
+        in_brackets = in_brackets.replace('<em>', '').replace('</em>', '')
+        # And split
+        names = map(lambda x: x.replace(',', ''), in_brackets.split(' '))
+        # Cleanup: remove empty string
+        while '' in names:
+            names.remove('')
 
-    # Now get the names, finally
-    last_name = names[0]
-    other_first_names = []
-    for i in range(1, len(names)-1):
-        other_first_names.append(names[i])
-    first_name = names[-1].replace(']', '')
+        # Now get the names, finally
+        last_name = names[0]
+        other_first_names = []
+        for i in range(1, len(names)-1):
+            other_first_names.append(names[i])
+        first_name = names[-1].replace(']', '')
+    else:
+        names = map(lambda x: x.replace(',', ''), full_name.split(' '))
+        last_name = names[0]
+        first_name = names[1]
+        other_first_names = []
+        for i in names[2::]:
+            other_first_names.append(i)
 
     infos['last_name'] = last_name
     infos['first_name'] = first_name
     infos['other_first_names'] = ' '.join(other_first_names)
+    logger.debug(str(infos))
 
     # First paragraph: extract some data, like birthdate, place, date of death
     notice = soup.find(class_='notice')
     first_para = notice.find(class_='chapo')
+    print first_para.find_all('p', recursive=False)[-1]
+    # Take the last paragraph of the notice actually
+    first_para = first_para.find_all('p', recursive=False)[-1]
     first_para_text = first_para.string
+    if first_para_text is None:
+        first_para_text = first_para.contents[0]
     extract_info_from_first_para(first_para_text)
 
     logger.debug(str(infos))
@@ -138,11 +153,13 @@ def extract_info_from_first_para(para_text):
     ''' Returns birthdate, place and death '''
 
     # Tokenize bitch
-    words = word_tokenize(para_text)
+    words = word_tokenize(para_text.encode('utf-8'))
     birth_index = -1
     death_index = -1
+
     for index, word in enumerate(words):
-        if word.startswith('Né'):
+
+        if str(word).startswith('Né'):
             birth_index = index
             logger.debug('Detected birth word')
 
@@ -155,21 +172,11 @@ def extract_info_from_first_para(para_text):
     birth_year = None
     birth_place = None
 
-    one_digit = re.compile('\d{1}')
-    four_digits = re.compile('\d{4}')
+    birth_day = words[birth_index + 2]
+    birth_month = words[birth_index + 3]
+    birth_year = words[birth_index + 4]
 
-    for l in range(birth_index, len(words)-1):
-        word = words[l]
-        if one_digit.match(word):
-            birth_day = word
-        elif word in months:
-            birth_month = word
-        elif four_digits.match(word):
-            birth_year = word
-        elif word == "à":
-            birth_place = words[l+1]
-
-    print str(birth_day, birth_month, birth_year, birth_place)
+    print str([birth_day, birth_month, birth_year, birth_place])
 
 
 def get_categories_dict():
