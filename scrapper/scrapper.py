@@ -98,7 +98,7 @@ def extract_infos(url, soup=None):
     # In id=header, class=nom-notice : nom/prenoms
     header = soup.find(id='header')
     nom_notice = header.find(class_='nom-notice')
-    print str(nom_notice)
+
     # Make one string only
     full_name = ''.join(map(unicode, nom_notice.contents))
 
@@ -163,20 +163,27 @@ def extract_info_from_first_para(para_text):
             birth_index = index
             logger.debug('Detected birth word')
 
-        if 'mort' in word:
+            birth_day = words[birth_index + 2]
+            birth_month = words[birth_index + 3]
+            birth_year = words[birth_index + 4]
+
+        # avoid detecting twice
+        if death_index < 0 and 'mort' in word:
             death_index = index
             logger.debug('Detected death word')
 
-    birth_day = None
-    birth_month = None
-    birth_year = None
-    birth_place = None
+            death_day = words[death_index + 2]
+            death_month = words[death_index + 3]
+            death_year = words[death_index + 4]
 
-    birth_day = words[birth_index + 2]
-    birth_month = words[birth_index + 3]
-    birth_year = words[birth_index + 4]
+    # Find birthplace
+    for index, word in enumerate(words[birth_index::]):
+        if 'à' == word:
+            birth_place = words[birth_index+index+1]
+            break
 
     print str([birth_day, birth_month, birth_year, birth_place])
+    print str([death_day, death_month, death_year, ])
 
 
 def get_categories_dict():
