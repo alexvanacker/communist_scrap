@@ -5,8 +5,8 @@ import os
 import string
 import requests
 import time
-import re
 import cPickle as pickle
+import nltk
 from nltk import word_tokenize
 import logging
 import logging.config
@@ -93,7 +93,7 @@ def extract_infos(url, soup=None):
 
     # Testing encoding
     detected_encoding = soup.original_encoding
-    logger.info('Detected encoding: '+str(detected_encoding))
+    # logger.info('Detected encoding: '+str(detected_encoding))
 
     # In id=header, class=nom-notice : nom/prenoms
     header = soup.find(id='header')
@@ -131,29 +131,34 @@ def extract_infos(url, soup=None):
     infos['last_name'] = last_name
     infos['first_name'] = first_name
     infos['other_first_names'] = ' '.join(other_first_names)
-    logger.debug(str(infos))
 
     # First paragraph: extract some data, like birthdate, place, date of death
     notice = soup.find(class_='notice')
     first_para = notice.find(class_='chapo')
-    print first_para.find_all('p', recursive=False)[-1]
     # Take the last paragraph of the notice actually
     first_para = first_para.find_all('p', recursive=False)[-1]
     first_para_text = first_para.string
     if first_para_text is None:
-        first_para_text = first_para.contents[0]
-    extract_info_from_first_para(first_para_text)
-
+        full_contents = ''
+        # There can be tags instead of strings in contents...
+        for c in first_para.contents:
+            try:
+                full_contents += c
+            except:
+                full_contents += c.string
+        first_para_text = full_contents
+    birth_and_death = extract_info_from_first_para(first_para_text)
+    infos.update(birth_and_death)
     logger.debug(str(infos))
 
     return infos
 
 
-def extract_info_from_first_para(para_text):
+def extract_info_from_first_para(para_text, encoding='utf-8'):
     ''' Returns birthdate, place and death '''
 
     # Tokenize bitch
-    words = word_tokenize(para_text.encode('utf-8'))
+    words = word_tokenize(para_text.encode(encoding))
     birth_index = -1
     death_index = -1
 
@@ -161,29 +166,91 @@ def extract_info_from_first_para(para_text):
 
         if str(word).startswith('Né'):
             birth_index = index
-            logger.debug('Detected birth word')
+            logger.debug('Detected birth word, index: '+str(birth_index))
 
-            birth_day = words[birth_index + 2]
-            birth_month = words[birth_index + 3]
-            birth_year = words[birth_index + 4]
+            # birth_day = words[birth_index + 2]
+            # birth_month = words[birth_index + 3]
+            # birth_year = words[birth_index + 4]
 
         # avoid detecting twice
         if death_index < 0 and 'mort' in word:
             death_index = index
-            logger.debug('Detected death word')
+            logger.debug('Detected death word, index: '+str(death_index))
 
-            death_day = words[death_index + 2]
-            death_month = words[death_index + 3]
-            death_year = words[death_index + 4]
+    if birth_index < 0:
+        logger.error('Could not extract birth info')
+        logger.error(words)
+        raise BaseException()
 
-    # Find birthplace
-    for index, word in enumerate(words[birth_index::]):
-        if 'à' == word:
+    if death_index < 0:
+        logger.error('Could not extract death index')
+        logger.error(words)
+        raise BaseException()
+
+    # Find birthstuff
+    birth_date_set = False
+    birth_place_set = False
+    for index, word in enumerate(words[birth_index:death_index]):
+        # FInd data pattern:
+        if not birth_date_set:
+            if word == 'le':
+                birth_day = words[birth_index+index+1]
+                birth_month = words[birth_index+index + 2]
+                birth_year = words[birth_index+index + 3]
+                birth_date_set = True
+
+        if 'à' == word and not birth_place_set:
             birth_place = words[birth_index+index+1]
+            birth_place_set = True
+
+        if birth_place_set and birth_date_set:
             break
 
-    print str([birth_day, birth_month, birth_year, birth_place])
-    print str([death_day, death_month, death_year, ])
+    death_date_set = False
+    death_place_set = False
+    death_place = None
+    for index, word in enumerate(words[death_index::]):
+        if word == 'le' and not death_date_set:
+            death_day = words[death_index + index + 1]
+            death_month = words[death_index + index + 2]
+            death_year = words[death_index + index + 3]
+            death_date_set = True
+
+        if 'à' == word and not death_place_set:
+            death_place = words[death_index+index+1]
+            death_place_set = True
+
+        if death_date_set and death_place_set:
+            # CLeanup, though ugly
+            if death_place.lower() == death_place:
+                death_place = None
+                logger.warn('Did not detect death place')
+            break
+
+    dico = {}
+    dico['birth_day'] = birth_day
+    dico['birth_month'] = birth_month
+    dico['birth_year'] = birth_year
+    dico['birth_place'] = birth_place
+    dico['death_day'] = death_day
+    dico['death_month'] = death_month
+    dico['death_year'] = death_year
+    dico['death_place'] = death_place
+    return dico
+
+
+def get_first_date_from_words(words):
+    """ Returns a tuple day, month, year detected in an array of words
+
+    """
+    for index, word in enumerate(words):
+        # FInd data pattern:
+        if word == 'le':
+            birth_day = words[index+1]
+            birth_month = words[index + 2]
+            birth_year = words[index + 3]
+            return (birth_day, birth_month, birth_year)
+
 
 
 def get_categories_dict():
