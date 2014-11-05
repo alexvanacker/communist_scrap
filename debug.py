@@ -79,7 +79,13 @@ def test_crawl():
     # print scrapper.get_all_urls_from_cat(cat_param)
 
 
+def test_scrap():
+    #http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=49893
+    scrapper.scrap_article_id('49893')
+
+
 if __name__ == '__main__':
     #test_extract_list_url_from_letter()
     #test_crawl()
-    debug_infos()
+    test_scrap()
+    #debug_infos()

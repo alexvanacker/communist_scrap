@@ -31,6 +31,24 @@ months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
           'octobre', 'novembre', 'décembre']
 
 
+def define_login_password():
+    """ Reads from a file the login information
+    """
+    file_path = 'login.txt'
+    logger.debug('Loading login information')
+    login_info = {}
+    f = open(file_path, 'rb')
+    for l in f.readlines():
+        if 'login' in l:
+            login_info['login'] = l.split('=')[1]
+        else:
+            login_info['pwd'] = l.split('=')[1]
+    return login_info
+
+
+login_info = define_login_password()
+login = login_info['login']
+pwd = login_info['pwd']
 parser = parser_html5
 
 try:
@@ -252,7 +270,6 @@ def get_first_date_from_words(words):
             return (birth_day, birth_month, birth_year)
 
 
-
 def get_categories_dict():
     ''' Returns dictionary linking categories to their URL params'''
 
@@ -279,7 +296,8 @@ def get_categories_dict():
     return types_dicos
 
 
-def get_all_urls_from_cat_multithread(category_param, nb_threads=concurrent_limit):
+def get_all_urls_from_cat_multithread(category_param,
+                                      nb_threads=concurrent_limit):
     """ Given a category URL param,
     returns the list of urls for all names in it.
     """
@@ -381,6 +399,33 @@ def extract_list_urls_from_list_page(page_url):
         return []
 
 
+def scrap_article_id(article_id):
+    full_url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article='
+    full_url = full_url + article_id
+    scrap_url(full_url)
+
+
+def scrap_url(url):
+    """ Main scrapping call
+
+    Tries to access an URL for a person.
+    If it has the information, scrap it. Otherwise,
+    we need to follow the real link and login.
+    """
+
+    s = requests.get(url, auth=(login, pwd))
+    soup = BeautifulSoup(s.content, parser, from_encoding='iso-8859-1')
+    
+    # with requests.Session() as s:
+    #     s.post(url, data=payload)
+    #     print str(s.status_code)
+    #     contents = s.contents
+    #     soup = BeautifulSoup(contents, parser, from_encoding='iso-8859-1')
+
+
+
+
+
 def crawl(home_url):
     ''' Returns a dictionary of URLs
 
@@ -404,3 +449,22 @@ def crawl(home_url):
                         final_dict[url] = [subcat]
 
                 pickle.dump(urls, open('comm_urls_'+subcat+'.p', 'wb'))
+
+    # Read the pickled files
+    working_directory = os.getcwd()
+    for f in os.listdir(working_directory):
+        if f.endswith('.p'):
+            # Name of category is file name, cleaned up
+            cat_name = f.replace('comm_urls_', '').replace('.p', '')
+            cat_name = unicode(cat_name, 'utf-8')
+            logger.info('Processing category: '+cat_name)
+            # Try opening the pickle file
+            full_path = os.path.join(working_directory, f)
+            urls = pickle.load(open(full_path))
+            for url in urls:
+                print url
+                article_split = url.split('article')
+                and_split = article_split[1].split('&')
+                article_id = and_split[0]
+                print article_id
+                break
