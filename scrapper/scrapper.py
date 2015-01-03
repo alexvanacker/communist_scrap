@@ -21,6 +21,7 @@ charset = 'iso-8859-1'
 parser_lxml = "lxml"
 parser_html5 = "html5lib"
 
+
 # Main url for crawling
 search_url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php'
 
@@ -40,9 +41,9 @@ def define_login_password():
     f = open(file_path, 'rb')
     for l in f.readlines():
         if 'login' in l:
-            login_info['login'] = l.split('=')[1]
+            login_info['login'] = l.split('=')[1].strip()
         else:
-            login_info['pwd'] = l.split('=')[1]
+            login_info['pwd'] = l.split('=')[1].strip()
     return login_info
 
 
@@ -412,18 +413,47 @@ def scrap_url(url):
     If it has the information, scrap it. Otherwise,
     we need to follow the real link and login.
     """
-
-    s = requests.get(url, auth=(login, pwd))
-    soup = BeautifulSoup(s.content, parser, from_encoding='iso-8859-1')
     
-    # with requests.Session() as s:
-    #     s.post(url, data=payload)
-    #     print str(s.status_code)
-    #     contents = s.contents
-    #     soup = BeautifulSoup(contents, parser, from_encoding='iso-8859-1')
-
-
-
+    logger.debug('Scrapping URL: {}'.format(url))
+    s = requests.session()
+    r = s.get(url)
+    soup = BeautifulSoup(r.content, parser, from_encoding='iso-8859-1')
+    
+    # Detect if login is required:
+    login_code = soup.find(id='var_login')
+    
+    if login_code is not None:
+        logger.info('Login needed, posting login information...')
+        
+        # Note: detect the formulaire_action_args
+        # and all other inputs for the form. 
+        # only inputs from the FORM (not the search stuff)
+        
+        login_form = soup.find(id='formulaire_login')
+        login_inputs = login_form.find_all('input')
+        
+        inputs_dict = {}
+        for input_ in login_inputs:
+            if input_.has_attr('name'):
+                inputs_dict[input_['name']] = input_['value']
+        
+        # OVerwrite with our login info
+        inputs_dict['var_login'] = login
+        inputs_dict['password'] = pwd
+        
+        r = s.post(url, data=inputs_dict)
+        soup = BeautifulSoup(r.content, parser, from_encoding='iso-8859-1')
+        login_code = soup.find(id='var_login')
+        if login_code is not None:
+            logger.error('Login failed, check the login information in : {}'.format(inputs_dict))
+            
+        else:
+            logger.debug('Login success')
+            
+            
+    # Now analyze the soup
+    extract_infos(url, soup)
+    
 
 
 def crawl(home_url):
