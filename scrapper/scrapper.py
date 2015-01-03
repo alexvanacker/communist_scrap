@@ -480,6 +480,23 @@ def extract_raw_text(url, soup=None):
     raw_infos = {}
     raw_infos['title'] = title.contents[0].replace(u'\xa0', ' ').encode('utf-8')
     
+    notice = soup.find(class_="notice")
+    summary = notice.find(class_="chapo")
+    first_para = summary.find_all('p', recursive=False)[-1]
+    first_para_text = first_para.string
+    if first_para_text is None:
+        full_contents = ''
+        # There can be tags instead of strings in contents...
+        for c in first_para.contents:
+            try:
+                full_contents += c
+            except:
+                full_contents += c.string
+        first_para_text = full_contents
+    
+    raw_infos['summary'] = first_para_text
+    
+    
     
     
 
