@@ -140,6 +140,16 @@ def extract_infos(url, soup=None):
             other_first_names.append(names[i])
         first_name = names[-1].replace(']', '')
     else:
+        # Handle pseudonyms
+        if 'Pseudo' in full_name:
+            pseudos_split = full_name.split('Pseudonymes')
+            full_name = pseudos_split[0]
+            pseudos = pseudos_split[1]
+            pseudos = pseudos.split(':')[1].strip()
+            pseudos =pseudos.split(',')
+            for i, pseudo in enumerate(pseudos):
+                infos['pseudo_'+str(i)] = pseudo
+            
         names = map(lambda x: x.replace(',', ''), full_name.split(' '))
         last_name = names[0]
         first_name = names[1]
