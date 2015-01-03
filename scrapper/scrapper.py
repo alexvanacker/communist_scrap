@@ -462,9 +462,26 @@ def scrap_url(url):
             
             
     # Now analyze the soup
-    extract_infos(url, soup)
+    extract_raw_text(url, soup)
     
-
+def extract_raw_text(url, soup=None):
+    """ Extract raw text for the URL 
+    
+    This include:
+     - title
+     - summary
+     - contents
+     - sources
+     - bibliography
+    """
+    
+    title_class = "nom-notice"
+    title = soup.find(class_=title_class)
+    raw_infos = {}
+    raw_infos['title'] = title.contents[0].replace(u'\xa0', ' ').encode('utf-8')
+    
+    
+    
 
 def crawl(home_url):
     ''' Returns a dictionary of URLs
