@@ -465,39 +465,48 @@ def scrap_url(url):
     extract_raw_text(url, soup)
     
 def extract_raw_text(url, soup=None):
-    """ Extract raw text for the URL 
+    """ Extract raw content from the URL 
     
     This include:
      - title
      - summary
      - contents
      - sources
-     - bibliography
+     - works
+     
+    Formatting is kept for post analysis (links to other articles, etc.)
+    Note: function that writes this data should use encode('utf-8')
+    
     """
     
     title_class = "nom-notice"
     title = soup.find(class_=title_class)
     raw_infos = {}
-    raw_infos['title'] = title.contents[0].replace(u'\xa0', ' ').encode('utf-8')
+    raw_infos['title'] = title.contents[0].replace(u'\xa0', ' ')
     
     notice = soup.find(class_="notice")
     summary = notice.find(class_="chapo")
     first_para = summary.find_all('p', recursive=False)[-1]
-    first_para_text = first_para.string
-    if first_para_text is None:
-        full_contents = ''
-        # There can be tags instead of strings in contents...
-        for c in first_para.contents:
-            try:
-                full_contents += c
-            except:
-                full_contents += c.string
-        first_para_text = full_contents
     
-    raw_infos['summary'] = first_para_text
+    raw_infos['summary'] = first_para
+
+    article = notice.find(class_='texte')
+    raw_infos['article'] = article
+    
+    sources = notice.find(class_='sources')
+    raw_infos['sources'] = sources
+    
+    works = notice.find(class_='oeuvres')
+    raw_infos['works'] = works
+    
+    # In function that writes, encode everything to bytes! .encode('utf-8')
+    return raw_infos
     
     
     
+    
+    
+        
     
 
 def crawl(home_url):
