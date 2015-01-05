@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import os.path as osp
 import string
 import requests
 import time
@@ -416,12 +417,11 @@ def scrap_article_id(article_id):
     scrap_url(full_url)
 
 
-def scrap_url(url):
+def get_soup(url):
     """ Main scrapping call
 
     Tries to access an URL for a person.
-    If it has the information, scrap it. Otherwise,
-    we need to follow the real link and login.
+    Logins if fails to access on first attempt.
     """
     
     logger.debug('Scrapping URL: {}'.format(url))
@@ -461,14 +461,14 @@ def scrap_url(url):
             logger.debug('Login success')
             
             
-    # Now analyze the soup
-    extract_raw_text(url, soup)
+    # Now return the soup
+    return soup
     
-def extract_raw_text(url, soup=None):
-    """ Extract raw content from the URL 
+def extract_raw_text(soup):
+    """ Extract raw content from the BeautifulSoup object 
     
     This include:
-     - title
+     - name
      - summary
      - contents
      - sources
@@ -482,7 +482,7 @@ def extract_raw_text(url, soup=None):
     title_class = "nom-notice"
     title = soup.find(class_=title_class)
     raw_infos = {}
-    raw_infos['title'] = title.contents[0].replace(u'\xa0', ' ')
+    raw_infos['name'] = title.contents[0].replace(u'\xa0', ' ')
     
     notice = soup.find(class_="notice")
     summary = notice.find(class_="chapo")
@@ -505,9 +505,78 @@ def extract_raw_text(url, soup=None):
     
     
     
+def write_raw_infos(url, target_folder):
+    """ Writes raw info an html file, named after the 
+    raw info name (spaces replaced by underscores).
     
+    The file will have the following format:
+    <div class='name'>
+    <div class='summary'>
+    <div class='texte'>
+    <div class='oeuvres'>
+    <div class='sources'>
+    
+    
+    """
+    if not osp.exists(target_folder):
+        # Create it
+        os.mkdir(target_folder)
         
     
+    soup = get_soup(url)
+    raw_infos = extract_raw_text(soup)
+    name = raw_infos['name']
+    #Remove pseudonym part
+    name = name.split('Pseudo')[0].replace('.','').strip()
+    name = name.replace(',','').replace(' ','_')
+    file_path = osp.join(target_folder, name)
+    
+    if osp.exists(file_path):
+        logger.debug('File already exists: {}'.format(file_path))
+        
+    f = open(file_path, 'wb')
+    
+    html_code = """
+    <html>
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        </head>
+        <body>
+    """
+    
+    html_code += '<div class="name">'
+    html_code += raw_infos['name'].encode('utf-8')
+    html_code += '</div>'
+    html_code += '\r\n'
+    
+    html_code += '<div class="summary">'
+    html_code += raw_infos['summary'].encode('utf-8')
+    html_code += '</div>'
+    html_code += '\r\n'
+    
+    # For article, sources and works
+    # there are already divs in the raw_infos
+    html_code += raw_infos['article'].encode('utf-8')
+    html_code += '\r\n'
+    
+
+    if raw_infos['sources'] is not None:
+        html_code += raw_infos['sources'].encode('utf-8')
+        html_code += '\r\n'
+
+    
+    if raw_infos['works'] is not None:
+        html_code += raw_infos['works'].encode('utf-8')
+        html_code += '\r\n'
+    
+    html_code += """
+    </body>
+    </html>
+    """
+    f.write(html_code)
+    f.close()
+    
+
 
 def crawl(home_url):
     ''' Returns a dictionary of URLs
