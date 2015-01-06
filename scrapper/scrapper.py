@@ -75,7 +75,7 @@ def make_soup(url, params=None):
                         (str(r.status_code), url))
 
     contents = r.content
-
+    
     soup = BeautifulSoup(contents, parser, from_encoding='iso-8859-1')
     return soup
 
@@ -475,6 +475,7 @@ def extract_raw_text(soup):
      - works
      
     Formatting is kept for post analysis (links to other articles, etc.)
+    Classes are renamed as above for easier post analysis.
     Note: function that writes this data should use encode('utf-8')
     
     """
@@ -491,12 +492,14 @@ def extract_raw_text(soup):
     raw_infos['summary'] = first_para
 
     article = notice.find(class_='texte')
+    article['class'] = 'article'
     raw_infos['article'] = article
     
     sources = notice.find(class_='sources')
     raw_infos['sources'] = sources
     
     works = notice.find(class_='oeuvres')
+    works['class'] = 'works'
     raw_infos['works'] = works
     
     # In function that writes, encode everything to bytes! .encode('utf-8')
@@ -512,8 +515,8 @@ def write_raw_infos(url, target_folder):
     The file will have the following format:
     <div class='name'>
     <div class='summary'>
-    <div class='texte'>
-    <div class='oeuvres'>
+    <div class='article'>
+    <div class='works'>
     <div class='sources'>
     
     
@@ -614,9 +617,9 @@ def crawl(home_url):
             full_path = os.path.join(working_directory, f)
             urls = pickle.load(open(full_path))
             for url in urls:
-                print url
+                # print url
                 article_split = url.split('article')
                 and_split = article_split[1].split('&')
                 article_id = and_split[0]
-                print article_id
+                # print article_id
                 break
