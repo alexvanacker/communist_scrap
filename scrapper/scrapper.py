@@ -603,7 +603,7 @@ def crawl(home_url):
                     else:
                         final_dict[url] = [subcat]
 
-                pickle.dump(urls, open('comm_urls_'+subcat+'.p', 'wb'))
+                pickle.dump(urls, open(pickle_file, 'wb'))
 
     # Read the pickled files
     working_directory = os.getcwd()

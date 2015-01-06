@@ -41,6 +41,12 @@
             "level": "DEBUG",
             "handlers": ["console"],
             "propagate": "no"
+        },
+        
+        "crawler": {
+            "level": "DEBUG",
+            "handlers": ["console"],
+            "propagate": "no"
         }
     }
 }
