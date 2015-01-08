@@ -6,6 +6,7 @@ import os.path as osp
 import string
 import requests
 import time
+import datetime
 import cPickle as pickle
 import nltk
 from nltk import word_tokenize
@@ -145,7 +146,7 @@ def get_letter_urls(letter, category_param):
                           '&',
                           'lettre=',
                           param])
-    logger.debug('Letter url: %s', letter_url)
+    #logger.debug('Letter url: %s', letter_url)
     try:
         all_letter_pages = get_all_pages_from_letter_page(letter_url)
         for l in all_letter_pages:
@@ -185,18 +186,37 @@ def get_all_urls_from_cat_multithread(category_param,
         pool.terminate()
         
     
-def crawl(home_url):
+def crawl(home_url, url_folder=None):
     ''' Returns a dictionary of URLs
 
     Each URL has a dict to link an epoch, theme, or place
+    
+    home_url -- base URL 
+    url_folder -- Path to the folder in which URL pickle files
+    will be stored
     '''
+    if url_folder is not None:
+        if not osp.exists(url_folder):
+            logger.debug('Folder does not exist, creating it: {}'.format(url_folder))
+            os.makedirs(url_folder)
+    else:
+        url_folder = os.getcwd()
+    
     final_dict = {}
+    start = time.time()
     cat_dict = get_categories_dict()
     for cat in cat_dict.keys():
         for subcat in cat_dict[cat].keys():
-            pickle_file = 'comm_urls_'+subcat+'.p'
+            
+            # Remove spaces 
+            clean_subcat_name = subcat.replace(' ','_').replace(u'\xa0', '_')
+            
+            pickle_file_name = 'comm_urls_'+clean_subcat_name+'.p'
+            pickle_file = osp.join(url_folder, pickle_file_name)
+
             if os.path.exists(pickle_file):
                 logger.info('Already extracted %s, skipping', subcat)
+                
             else:
                 urls = get_all_urls_from_cat_multithread(cat_dict[cat][subcat])
                 logger.info('For %s , number of persons: %s' %
@@ -208,22 +228,8 @@ def crawl(home_url):
                         final_dict[url] = [subcat]
 
                 pickle.dump(urls, open(pickle_file, 'wb'))
-
-    # Read the pickled files
-    working_directory = os.getcwd()
-    for f in os.listdir(working_directory):
-        if f.endswith('.p'):
-            # Name of category is file name, cleaned up
-            cat_name = f.replace('comm_urls_', '').replace('.p', '')
-            cat_name = unicode(cat_name, 'utf-8')
-            logger.info('Processing category: '+cat_name)
-            # Try opening the pickle file
-            full_path = os.path.join(working_directory, f)
-            urls = pickle.load(open(full_path))
-            for url in urls:
-                # print url
-                article_split = url.split('article')
-                and_split = article_split[1].split('&')
-                article_id = and_split[0]
-                # print article_id
-                break
+    
+    end = time.time()
+    total_time_sec = end - start
+    total_time_delta = datetime.timedelta(seconds=total_time_sec)
+    logger.debug('Total time: {}'.format(str(total_time_delta)))
