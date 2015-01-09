@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import logging
 from scrapper import scrapper
 from scrapper import crawler
@@ -74,15 +77,22 @@ def bench():
 
 
 def test_crawl():
-    crawler.crawl('http://maitron-en-ligne.univ-paris1.fr')
+    crawler.crawl('http://maitron-en-ligne.univ-paris1.fr', url_folder='/home/ubuntu/workspace/urls')
     # url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?mot23&lettre=^[aA]'
     # cat_param = 'mot23'
     # print scrapper.get_all_urls_from_cat(cat_param)
 
 
 def test_scrap():
-    #http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=49893
-    scrapper.scrap_article_id('49893')
+    test_urls = ['http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=161643',
+                 'http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=169589']
+    for url in test_urls:
+        scrapper.write_raw_infos(url,
+                             '/home/ubuntu/workspace/articles')
+    
+
+    scrapper.scrap_all_articles('/home/ubuntu/workspace/urls', '/home/ubuntu/workspace/articles')
+    #scrapper.write_article()
     
 def test_write():
     scrapper.write_raw_infos('http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=49893', '/home/ubuntu/workspace/articles/')
@@ -90,6 +100,7 @@ def test_write():
 
 if __name__ == '__main__':
     #test_extract_list_url_from_letter()
-    test_crawl()
+    #test_crawl()
     #test_write()
     #debug_infos()
+    test_scrap()
