@@ -71,12 +71,12 @@ def get_categories_dict():
     types = nav.find_all('li', recursive=False)
 
     for t in types:
-        type_title = t.contents[0].strip()
+        type_title = unicode(t.contents[0].strip())
         list_items = t.find_all('li')
         types_dicos[type_title] = {}
         for item in list_items:
-            link = item.a['href'].replace('spip.php?', '')
-            item_name = item.string
+            link = unicode(item.a['href'].replace('spip.php?', ''))
+            item_name = unicode(item.string)
             types_dicos[type_title][item_name] = link
 
     return types_dicos
@@ -120,7 +120,7 @@ def extract_list_urls_from_list_page(page_url):
         try:
             # Yeah, because it's always nice to find <a> tags without
             # hrefs...
-            urls = [l['href'] for l in links if 'href' in l.attrs.keys()]
+            urls = [unicode(l['href']) for l in links if 'href' in l.attrs.keys()]
             return urls
         except:
             logger.error('Error getting href from %s', page_url)
@@ -187,12 +187,12 @@ def get_all_urls_from_cat_multithread(category_param,
         
     
 def crawl(home_url, url_folder=None):
-    ''' Returns a dictionary of URLs
+    ''' Wrties a dictionary of URLs
 
     Each URL has a dict to link an epoch, theme, or place
     
     home_url -- base URL 
-    url_folder -- Path to the folder in which URL pickle files
+    url_folder -- Path to the folder in which URL pickle file
     will be stored
     '''
     if url_folder is not None:
@@ -211,24 +211,24 @@ def crawl(home_url, url_folder=None):
             # Remove spaces 
             clean_subcat_name = subcat.replace(' ','_').replace(u'\xa0', '_')
             
-            pickle_file_name = 'comm_urls_'+clean_subcat_name+'.p'
-            pickle_file = osp.join(url_folder, pickle_file_name)
+            urls = get_all_urls_from_cat_multithread(cat_dict[cat][subcat])
+            logger.info('For %s , number of persons: %s' %
+                        (subcat, str(len(urls))))
+            for url in urls:
+                if url in final_dict:
+                    final_dict[url].append[clean_subcat_name]
+                else:
+                    final_dict[url] = [clean_subcat_name]
+                    
+            # TODO: pickle here the dict, in case errors occur
+            # so as not to start from scratch.
+            # This of course implies checking presence above,
+            # and checking where we were at.
 
-            if os.path.exists(pickle_file):
-                logger.info('Already extracted %s, skipping', subcat)
-                
-            else:
-                urls = get_all_urls_from_cat_multithread(cat_dict[cat][subcat])
-                logger.info('For %s , number of persons: %s' %
-                            (subcat, str(len(urls))))
-                for url in urls:
-                    if url in final_dict:
-                        final_dict[url].append[subcat]
-                    else:
-                        final_dict[url] = [subcat]
-
-                pickle.dump(urls, open(pickle_file, 'wb'))
-    
+    # Write URL dict to file
+    dict_filepath = osp.join(url_folder, 'url_dict.p')
+    pickle.dump(final_dict, open(dict_filepath, 'wb'))
+        
     end = time.time()
     total_time_sec = end - start
     total_time_delta = datetime.timedelta(seconds=total_time_sec)
