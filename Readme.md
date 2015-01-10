@@ -1,0 +1,1 @@
+[![Build Status](https://travis-ci.org/alexvanacker/communist_scrap.svg?branch=master)](https://travis-ci.org/alexvanacker/communist_scrap)
