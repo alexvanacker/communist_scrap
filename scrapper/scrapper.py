@@ -21,6 +21,8 @@ charset = 'iso-8859-1'
 parser_lxml = "lxml"
 parser_html5 = "html5lib"
 
+# Where to store ignored URLs
+ignored_file = '/home/ubuntu/workspace/failed.txt'
 
 # Main url for crawling
 search_url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php'
@@ -42,13 +44,20 @@ def scrap_all_articles(dict_file, articles_folder):
 
     # Read the URLs
     urls = pickle.load(open(dict_file, 'rb'))
-    logger.debug('Number of URLs: {}'.format(str(len(urls))))
+    nb_urls = len(urls)
+    logger.debug('Number of URLs: {}'.format(str(nb_urls)))
+    
+    count = 0
     for url in urls:
+        count += 1
         categories = map(unicode, urls[url])
         # Extract article ID
         article_id = url.split('.php?')[1].split('&')[0].replace('article','')
         real_url = get_full_url(article_id)
         write_raw_infos(real_url, articles_folder, categories=categories)
+        
+        if count % 1000 == 0: 
+            logger.info('Processed: {}'.format(str(count)))
 
     end = time.time()
     total_time_sec = end - start
@@ -97,10 +106,10 @@ pwd = login_info['pwd']
 parser = parser_html5
 
 try:
-    test_soup = BeautifulSoup('<html></html>', parser)
+    test_soup = BeautifulSoup('<html></html>', parser_html5)
     logger.info('Using parser : ' + parser)
 except FeatureNotFound:
-    logger.info(parser + ' not found, switching to '+parser_html5)
+    logger.info(parser + ' not found, switching to '+parser_lxml)
     parser = parser_lxml
     try:
         test_soup = BeautifulSoup('<html></html>', parser)
@@ -141,11 +150,36 @@ def test_access_url(url, time_pause_sec=5):
                             (str(r.status_code), url))
 
 
+def detect_login(soup):
+    """ Returns true if there is a login form in the soup """
+    
+    main = soup.find(id='main')
+    notice = main.find(class_='notice')
+    for c in notice.children:
+        if c.name == 'div':
+            if c.has_attr('class') and 'formulaire_login' in c['class']:
+                return True
+    
+    return False
+    
+def save_url_to_file(url, filepath):
+    """ Appends URL to given file """
+    with open(filepath, 'ab') as f:
+        f.write(url+'\r\n')
+
+def is_format_wrong(soup):
+    """ Returns true if we find the tag <a faire>"""
+    a = soup.find('a')
+    if a.has_attr('faire'):
+        return True
+    return False
+
 def get_soup(url):
     """ Main scrapping call
 
     Tries to access an URL for a person.
     Logins if fails to access on first attempt.
+    Returns None if the page is not well formatted.
     """
     
     logger.debug('Scrapping URL: {}'.format(url))
@@ -153,14 +187,22 @@ def get_soup(url):
     soup = BeautifulSoup(r.content, parser, from_encoding='iso-8859-1')
     
     # Detect if login is required:
-    login_code = soup.find(id='var_login')
-    
-    if login_code is not None:
+    if detect_login(soup):
         logger.info('Login needed, posting login information...')
         
         # Note: detect the formulaire_action_args
         # and all other inputs for the form. 
         # only inputs from the FORM (not the search stuff)
+        
+        main = soup.find(id='main')
+        notice = main.find(class_='notice')
+        a = notice.find('a')
+        
+        # Detect fucked up pages, save for later
+        if a.has_attr('faire'):
+            logger.debug('Ignoring URL, formatting errors with a faire')
+            save_url_to_file(url, ignored_file)
+            return None     
         
         login_form = soup.find(id='formulaire_login')
         login_inputs = login_form.find_all('input')
@@ -176,18 +218,18 @@ def get_soup(url):
         
         r = session.post(url, data=inputs_dict)
         soup = BeautifulSoup(r.content, parser, from_encoding='iso-8859-1')
-        login_code = soup.find(id='var_login')
-        if login_code is not None:
+        if detect_login(soup):
             logger.error('Login failed, check the login information in : {}'.format(inputs_dict))
+            raise Exception
             
         else:
             logger.debug('Login success')
             
-            
     # Now return the soup
     return soup
     
-def extract_raw_text(soup):
+
+def extract_raw_text(soup, url):
     """ Extract raw content from the BeautifulSoup object 
     
     This include:
@@ -208,6 +250,12 @@ def extract_raw_text(soup):
     raw_infos['name'] = title.contents[0].replace(u'\xa0', ' ')
     
     notice = soup.find(class_="notice")
+    
+    # Ignore wrong formats
+    if is_format_wrong(notice):
+        save_url_to_file(url, ignored_file)
+        return None
+        
     summary = notice.find(class_="chapo")
     if summary is not None:
         first_para = summary.find_all('p', recursive=False)[-1]
@@ -265,65 +313,69 @@ def write_raw_infos(url, target_folder, categories=None):
     article_id = url.split('id_article=')[1]
     
     soup = get_soup(url)
-    raw_infos = extract_raw_text(soup)
-    name = raw_infos['name']
-    # Remove pseudonym part
-    name = name.split('Pseudo')[0].replace('.','').strip()
-    name = name.replace(',','').replace(' ','_')
-    file_path = osp.join(target_folder, name)
-
-    if osp.exists(file_path):
-        logger.debug('File already exists: '+file_path)
+    if soup is not None:
+        raw_infos = extract_raw_text(soup, url)
+        if raw_infos is not None:
+            name = raw_infos['name']
+            # Remove pseudonym part
+            name = name.split('Pseudo')[0].replace('.','').strip()
+            name = name.replace(',','').replace(' ','_')
+            file_path = osp.join(target_folder, name)
         
-    f = open(file_path, 'wb')
-    
-    html_code = """
-    <html>
-        <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        </head>
-        <body>
-    """
-    html_code += '<div class="id">'
-    html_code += article_id
-    html_code += '</div>'
-    html_code += '\r\n'
-    
-    for category in categories:
-        html_code += '<div class="category">'
-        html_code += category
-        html_code += '</div>'
-        html_code += '\r\n'
-    
-    
-    html_code += '<div class="name">'
-    html_code += raw_infos['name']
-    html_code += '</div>'
-    html_code += '\r\n'
-    
-    # For article, sources, works, and summary
-    # there are already divs in the raw_infos
-    
-    html_code += raw_infos['summary']
-    html_code += '\r\n'
-    
-    html_code += raw_infos['article']
-    html_code += '\r\n'
-    
-
-    if raw_infos['sources'] is not None:
-        html_code += raw_infos['sources']
-        html_code += '\r\n'
-
-    
-    if raw_infos['works'] is not None:
-        html_code += raw_infos['works']
-        html_code += '\r\n'
-    
-    html_code += """
-    </body>
-    </html>
-    """
-    
-    f.write(html_code.encode('utf-8'))
-    f.close()
+            if osp.exists(file_path):
+                logger.debug('File already exists: ' + file_path)
+                # TODO: add option for overwriting (updates)
+                return
+                
+            f = open(file_path, 'wb')
+            
+            html_code = """
+            <html>
+                <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+                </head>
+                <body>
+            """
+            html_code += '<div class="id">'
+            html_code += article_id
+            html_code += '</div>'
+            html_code += '\r\n'
+            
+            for category in categories:
+                html_code += '<div class="category">'
+                html_code += category
+                html_code += '</div>'
+                html_code += '\r\n'
+            
+            
+            html_code += '<div class="name">'
+            html_code += raw_infos['name']
+            html_code += '</div>'
+            html_code += '\r\n'
+            
+            # For article, sources, works, and summary
+            # there are already divs in the raw_infos
+            
+            html_code += raw_infos['summary']
+            html_code += '\r\n'
+            
+            html_code += raw_infos['article']
+            html_code += '\r\n'
+            
+        
+            if raw_infos['sources'] is not None:
+                html_code += raw_infos['sources']
+                html_code += '\r\n'
+        
+            
+            if raw_infos['works'] is not None:
+                html_code += raw_infos['works']
+                html_code += '\r\n'
+            
+            html_code += """
+            </body>
+            </html>
+            """
+            
+            f.write(html_code.encode('utf-8'))
+            f.close()
