@@ -314,68 +314,74 @@ def write_raw_infos(url, target_folder, categories=None):
     
     soup = get_soup(url)
     if soup is not None:
-        raw_infos = extract_raw_text(soup, url)
-        if raw_infos is not None:
-            name = raw_infos['name']
-            # Remove pseudonym part
-            name = name.split('Pseudo')[0].replace('.','').strip()
-            name = name.replace(',','').replace(' ','_')
-            file_path = osp.join(target_folder, name)
-        
-            if osp.exists(file_path):
-                logger.debug('File already exists: ' + file_path)
-                # TODO: add option for overwriting (updates)
-                return
+        try:
+            raw_infos = extract_raw_text(soup, url)
+            if raw_infos is not None:
+                name = raw_infos['name']
+                # Remove pseudonym part
+                name = name.split('Pseudo')[0].replace('.','').strip()
+                name = name.replace(',','').replace(' ','_')
+                file_path = osp.join(target_folder, name)
+            
+                if osp.exists(file_path):
+                    logger.debug('File already exists: ' + file_path)
+                    # TODO: add option for overwriting (updates)
+                    return
+                    
+                f = open(file_path, 'wb')
                 
-            f = open(file_path, 'wb')
-            
-            html_code = """
-            <html>
-                <head>
-                <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-                </head>
-                <body>
-            """
-            html_code += '<div class="id">'
-            html_code += article_id
-            html_code += '</div>'
-            html_code += '\r\n'
-            
-            for category in categories:
-                html_code += '<div class="category">'
-                html_code += category
+                html_code = """
+                <html>
+                    <head>
+                    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+                    </head>
+                    <body>
+                """
+                html_code += '<div class="id">'
+                html_code += article_id
                 html_code += '</div>'
                 html_code += '\r\n'
-            
-            
-            html_code += '<div class="name">'
-            html_code += raw_infos['name']
-            html_code += '</div>'
-            html_code += '\r\n'
-            
-            # For article, sources, works, and summary
-            # there are already divs in the raw_infos
-            
-            html_code += raw_infos['summary']
-            html_code += '\r\n'
-            
-            html_code += raw_infos['article']
-            html_code += '\r\n'
-            
-        
-            if raw_infos['sources'] is not None:
-                html_code += raw_infos['sources']
+                
+                for category in categories:
+                    html_code += '<div class="category">'
+                    html_code += category
+                    html_code += '</div>'
+                    html_code += '\r\n'
+                
+                
+                html_code += '<div class="name">'
+                html_code += raw_infos['name']
+                html_code += '</div>'
                 html_code += '\r\n'
-        
-            
-            if raw_infos['works'] is not None:
-                html_code += raw_infos['works']
+                
+                # For article, sources, works, and summary
+                # there are already divs in the raw_infos
+                
+                html_code += raw_infos['summary']
                 html_code += '\r\n'
+                
+                html_code += raw_infos['article']
+                html_code += '\r\n'
+                
             
-            html_code += """
-            </body>
-            </html>
-            """
+                if raw_infos['sources'] is not None:
+                    html_code += raw_infos['sources']
+                    html_code += '\r\n'
             
-            f.write(html_code.encode('utf-8'))
-            f.close()
+                
+                if raw_infos['works'] is not None:
+                    html_code += raw_infos['works']
+                    html_code += '\r\n'
+                
+                html_code += """
+                </body>
+                </html>
+                """
+                
+                f.write(html_code.encode('utf-8'))
+                f.close()
+
+        except Exception as e:
+            logger.error('Error handling URL {}, saving to failed list...'.format(url))
+            logger.error(e.message)
+            save_url_to_file(url, ignored_file)

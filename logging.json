@@ -45,7 +45,7 @@
         
         "crawler": {
             "level": "DEBUG",
-            "handlers": ["console"],
+            "handlers": ["console", "error_file_handler"],
             "propagate": "no"
         }
     }
