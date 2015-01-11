@@ -4,6 +4,7 @@ python:
 
 before_install:
   - "sudo apt-get install libxml2"
+  - "openssl aes-256-cbc -K $encrypted_26b4962af0e7_key -iv $encrypted_26b4962af0e7_iv -in login.txt.enc -out login.txt -d"
 # command to install dependencies
 install:
   - "pip install -r requirements.txt"
