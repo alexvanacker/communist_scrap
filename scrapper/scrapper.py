@@ -22,7 +22,7 @@ parser_lxml = "lxml"
 parser_html5 = "html5lib"
 
 # Where to store ignored URLs
-ignored_file = '/home/ubuntu/workspace/failed.txt'
+ignored_file = osp.join(os.getcwd(),'failed.txt')
 
 # Main url for crawling
 search_url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php'
