@@ -224,7 +224,7 @@ def get_soup(url):
             raise Exception
             
         else:
-            logger.debug('Login success')
+            logger.info('Login success')
             
     # Now return the soup
     return soup
