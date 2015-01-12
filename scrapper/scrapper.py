@@ -308,10 +308,10 @@ def write_raw_infos(url, target_folder, categories=None, compress=True):
         
     # Extract id
     article_id = url.split('id_article=')[1]
-    
-    soup = get_soup(url)
-    if soup is not None:
-        try:
+    try:
+        soup = get_soup(url)
+
+        if soup is not None:
             raw_infos = extract_raw_text(soup, url)
             if raw_infos is not None:
                 name = unicode(raw_infos['name'])
@@ -385,7 +385,7 @@ def write_raw_infos(url, target_folder, categories=None, compress=True):
                 f.write(html_code.encode('utf-8'))
                 f.close()
 
-        except Exception, e:
-            logger.error('Error handling URL {}, saving to failed list...'.format(url))
-            logger.error(e)
-            save_url_to_file(url, ignored_file)
+    except Exception, e:
+        logger.error('Error handling URL {}, saving to failed list...'.format(url))
+        logger.error(e)
+        save_url_to_file(url, ignored_file)
