@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import gzip
 import os.path as osp
 import string
 import requests
@@ -21,8 +22,13 @@ charset = 'iso-8859-1'
 parser_lxml = "lxml"
 parser_html5 = "html5lib"
 
+time_format = '%Y_%m_%d_%H_%M_%S'
+date_time = datetime.datetime.now()
+date_string = date_time.strftime(time_format)
+failed_name = 'failed_'+date_string+'.txt'
+
 # Where to store ignored URLs
-ignored_file = osp.join(os.getcwd(),'failed.txt')
+ignored_file = osp.join(os.getcwd(), failed_name)
 
 # Main url for crawling
 search_url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php'
@@ -33,7 +39,7 @@ logger = logging.getLogger(__name__)
 session = requests.session()
 
           
-def scrap_all_articles(dict_file, articles_folder):
+def scrap_all_articles(dict_file, articles_folder, compress=True):
     """ Will scrap all URLs from the pickle file found in the URL folder.
     
     dict_file -- Path to pickel file containing the URL dictionary
@@ -45,7 +51,7 @@ def scrap_all_articles(dict_file, articles_folder):
     # Read the URLs
     urls = pickle.load(open(dict_file, 'rb'))
     nb_urls = len(urls)
-    logger.debug('Number of URLs: {}'.format(str(nb_urls)))
+    logger.info('Number of URLs: {}'.format(str(nb_urls)))
     
     count = 0
     for url in urls:
@@ -54,10 +60,11 @@ def scrap_all_articles(dict_file, articles_folder):
         # Extract article ID
         article_id = url.split('.php?')[1].split('&')[0].replace('article','')
         real_url = get_full_url(article_id)
-        write_raw_infos(real_url, articles_folder, categories=categories)
+        write_raw_infos(real_url, articles_folder, categories=categories, compress=compress)
         
         if count % 1000 == 0: 
-            logger.info('Processed: {}'.format(str(count)))
+            logger.info('Processed: {} / {}'.format(str(count), str(nb_urls)))
+
 
     end = time.time()
     total_time_sec = end - start
@@ -198,12 +205,6 @@ def get_soup(url):
         notice = main.find(class_='notice')
         a = notice.find('a')
         
-        # Detect fucked up pages, save for later
-        if a.has_attr('faire'):
-            logger.debug('Ignoring URL, formatting errors with a faire')
-            save_url_to_file(url, ignored_file)
-            return None     
-        
         login_form = soup.find(id='formulaire_login')
         login_inputs = login_form.find_all('input')
         
@@ -251,11 +252,6 @@ def extract_raw_text(soup, url):
     
     notice = soup.find(class_="notice")
     
-    # Ignore wrong formats
-    if is_format_wrong(notice):
-        save_url_to_file(url, ignored_file)
-        return None
-        
     summary = notice.find(class_="chapo")
     if summary is not None:
         first_para = summary.find_all('p', recursive=False)[-1]
@@ -283,7 +279,7 @@ def extract_raw_text(soup, url):
     return raw_infos
     
     
-def write_raw_infos(url, target_folder, categories=None):
+def write_raw_infos(url, target_folder, categories=None, compress=True):
     """ Writes raw info an html file, named after the 
     raw info name (spaces replaced by underscores).
     
@@ -299,6 +295,7 @@ def write_raw_infos(url, target_folder, categories=None):
     url -- URL from which to scrap the data
     target_folder -- Folder in which the html file will be placed
     categories -- Website category list (era, ...)
+    compress -- Compress file that will be written
     
     """
     if categories is None or len(categories) == 0:
@@ -317,18 +314,25 @@ def write_raw_infos(url, target_folder, categories=None):
         try:
             raw_infos = extract_raw_text(soup, url)
             if raw_infos is not None:
-                name = raw_infos['name']
+                name = unicode(raw_infos['name'])
                 # Remove pseudonym part
                 name = name.split('Pseudo')[0].replace('.','').strip()
                 name = name.replace(',','').replace(' ','_')
+                # Compression
+                if compress:
+                    name += '.gz'
+
                 file_path = osp.join(target_folder, name)
             
                 if osp.exists(file_path):
                     logger.debug('File already exists: ' + file_path)
                     # TODO: add option for overwriting (updates)
                     return
-                    
-                f = open(file_path, 'wb')
+                
+                if compress:
+                    f = gzip.open(file_path.encode('utf-8'), 'wb')
+                else:
+                    f = open(file_path.encode('utf-8'), 'wb')
                 
                 html_code = """
                 <html>
@@ -381,7 +385,7 @@ def write_raw_infos(url, target_folder, categories=None):
                 f.write(html_code.encode('utf-8'))
                 f.close()
 
-        except Exception as e:
+        except Exception, e:
             logger.error('Error handling URL {}, saving to failed list...'.format(url))
-            logger.error(e.message)
+            logger.error(e)
             save_url_to_file(url, ignored_file)
