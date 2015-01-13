@@ -2,8 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import gzip
+import os.path as osp
+import os
 import nltk
 import scrapper
+from bs4 import BeautifulSoup
 from nltk import word_tokenize
 
 logger = logging.getLogger(__name__)
@@ -13,27 +17,40 @@ months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
           'août', 'septembre',
           'octobre', 'novembre', 'décembre']
           
+class_id = 'id'
+class_category = 'category'
+class_name = 'name'
+class_article = 'article'
+class_sources= 'sources'
           
-def extract_infos(url, soup=None):
-    ''' Extract infos from given person url
+def extract_infos_from_file(filepath):
+    ''' Extract infos from given person article
 
     Returns dict of informations
-    url -- URL for the person's page
-    soup -- BeautifulSoup object if already created
+    filepath -- Path to the person's article HTML file
     '''
+    
+    if not osp.exists(filepath):
+        logger.error('Could not find article file: {}'.format(filepath))
+        raise Exception
 
+    # detect compression
+    compress = False
+    if filepath.endswith('.gz'):
+        compress = True
+        
+    if compress:
+        soup = BeautifulSoup(gzip.open(filepath, 'rb'))
+    else:
+        soup = BeautifulSoup(open(filepath, 'rb'))
+
+    print soup
     infos = {}
-
-    if soup is None:
-        soup = scrapper.make_soup(url)
 
     # Testing encoding
     detected_encoding = soup.original_encoding
-    # logger.info('Detected encoding: '+str(detected_encoding))
-
-    # In id=header, class=nom-notice : nom/prenoms
-    header = soup.find(id='header')
-    nom_notice = header.find(class_='nom-notice')
+    
+    nom_notice = soup.find(class_=class_name)
 
     # Make one string only
     full_name = ''.join(map(unicode, nom_notice.contents))
@@ -77,25 +94,27 @@ def extract_infos(url, soup=None):
     infos['last_name'] = last_name
     infos['first_name'] = first_name
     infos['other_first_names'] = ' '.join(other_first_names)
+    
+    print str(infos)
 
-    # First paragraph: extract some data, like birthdate, place, date of death
-    notice = soup.find(class_='notice')
-    first_para = notice.find(class_='chapo')
-    # Take the last paragraph of the notice actually
-    first_para = first_para.find_all('p', recursive=False)[-1]
-    first_para_text = first_para.string
-    if first_para_text is None:
-        full_contents = ''
-        # There can be tags instead of strings in contents...
-        for c in first_para.contents:
-            try:
-                full_contents += c
-            except:
-                full_contents += c.string
-        first_para_text = full_contents
-    birth_and_death = extract_info_from_first_para(first_para_text)
-    infos.update(birth_and_death)
-    logger.debug(str(infos))
+    # # First paragraph: extract some data, like birthdate, place, date of death
+    # notice = soup.find(class_='notice')
+    # first_para = notice.find(class_='chapo')
+    # # Take the last paragraph of the notice actually
+    # first_para = first_para.find_all('p', recursive=False)[-1]
+    # first_para_text = first_para.string
+    # if first_para_text is None:
+    #     full_contents = ''
+    #     # There can be tags instead of strings in contents...
+    #     for c in first_para.contents:
+    #         try:
+    #             full_contents += c
+    #         except:
+    #             full_contents += c.string
+    #     first_para_text = full_contents
+    # birth_and_death = extract_info_from_first_para(first_para_text)
+    # infos.update(birth_and_death)
+    # logger.debug(str(infos))
 
     return infos
 
