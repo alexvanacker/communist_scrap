@@ -32,6 +32,11 @@ class ScraperTest(unittest.TestCase):
     def test_i_tag_in_weird_places(self):
         url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=115030'
         scrapper.write_raw_infos(url, self.tmp_folder_path)
+        
+    def test_long_name(self):
+        url = 'http://maitron-en-ligne.univ-paris1.fr/spip.php?page=article_long&id_article=49943'
+        scrapper.write_raw_infos(url, self.tmp_folder_path)
+    
 
 def main():
     unittest.main()

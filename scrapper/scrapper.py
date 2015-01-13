@@ -43,7 +43,8 @@ def scrap_all_articles(dict_file, articles_folder, compress=True):
     """ Will scrap all URLs from the pickle file found in the URL folder.
     
     dict_file -- Path to pickel file containing the URL dictionary
-    
+    articles_folder -- Path to the folder in which the articles will be saved
+    compress -- True if we wish to compress the articles
     """
 
     start = time.time()
@@ -279,9 +280,10 @@ def extract_raw_text(soup, url):
     return raw_infos
     
     
-def write_raw_infos(url, target_folder, categories=None, compress=True):
-    """ Writes raw info an html file, named after the 
-    raw info name (spaces replaced by underscores).
+def write_raw_infos(url, target_folder, categories=None, compress=True, overwrite=False):
+    """ Writes raw info in an html file.
+    
+    Filename is articleId by default. 
     
     The file will have the following format:
     <div class='name'>
@@ -296,6 +298,7 @@ def write_raw_infos(url, target_folder, categories=None, compress=True):
     target_folder -- Folder in which the html file will be placed
     categories -- Website category list (era, ...)
     compress -- Compress file that will be written
+    overwrite -- OVerwrite file if is exists
     
     """
     if categories is None or len(categories) == 0:
@@ -308,26 +311,25 @@ def write_raw_infos(url, target_folder, categories=None, compress=True):
         
     # Extract id
     article_id = url.split('id_article=')[1]
+    
+    # Check if already processed this
+    filename = article_id
+    if compress:
+        filename += '.gz'
+        
+    file_path = osp.join(target_folder, filename)
+
+    if not overwrite and osp.exists(file_path):
+        logger.debug('File already exists: ' + file_path)
+        # TODO: add option for overwriting (updates)
+        return
+    
     try:
         soup = get_soup(url)
 
         if soup is not None:
             raw_infos = extract_raw_text(soup, url)
             if raw_infos is not None:
-                name = unicode(raw_infos['name'])
-                # Remove pseudonym part
-                name = name.split('Pseudo')[0].replace('.','').strip()
-                name = name.replace(',','').replace(' ','_')
-                # Compression
-                if compress:
-                    name += '.gz'
-
-                file_path = osp.join(target_folder, name)
-            
-                if osp.exists(file_path):
-                    logger.debug('File already exists: ' + file_path)
-                    # TODO: add option for overwriting (updates)
-                    return
                 
                 if compress:
                     f = gzip.open(file_path.encode('utf-8'), 'wb')
