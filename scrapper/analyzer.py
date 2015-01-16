@@ -21,7 +21,7 @@ class_id = 'id'
 class_category = 'category'
 class_name = 'name'
 class_article = 'article'
-class_sources= 'sources'
+class_sources = 'sources'
           
 def extract_infos_from_file(filepath):
     ''' Extract infos from given person article
@@ -29,6 +29,7 @@ def extract_infos_from_file(filepath):
     Returns dict of informations
     filepath -- Path to the person's article HTML file
     '''
+    logger.debug('Analyzing file: {}'.format(filepath))
     
     if not osp.exists(filepath):
         logger.error('Could not find article file: {}'.format(filepath))
@@ -97,6 +98,7 @@ def extract_infos_from_file(filepath):
     
     print str(infos)
 
+
     # # First paragraph: extract some data, like birthdate, place, date of death
     # notice = soup.find(class_='notice')
     # first_para = notice.find(class_='chapo')
@@ -116,6 +118,75 @@ def extract_infos_from_file(filepath):
     # infos.update(birth_and_death)
     # logger.debug(str(infos))
 
+    return infos
+
+
+def extract_names_from_soup(soup):
+    """ Extract name infos from the full article
+    """
+    logger.debug('Extracting names...')
+    name_tag = soup.find(class_=class_name)
+    # Make one string only
+    full_name = ''.join(map(unicode, name_tag.contents))
+    return extract_names_from_string(full_name)
+
+
+def extract_names_from_string(name_string):
+    """ Extract name info from a name string 
+    
+    
+    
+    """
+    names = name_string.split(' ')
+    infos = {}
+    infos['last_name'] = names[0]
+    infos['usual_first_name'] = names[1].replace(',', '')
+    infos['usual_name_is_in_birthnames'] = 1
+    names = names[2::]
+    remove_commas = lambda x: x.replace(',','')
+    names = map(remove_commas, names)
+    
+    # DURAND Jacques [DURAND Michel, Georges, dit]. 
+    if '[' in name_string:
+        in_brackets = name_string.split('[')[1]
+        names_in_brackets = in_brackets.replace(']','').replace(',','').split(' ')
+        
+        max_index = len(names_in_brackets)
+        if names_in_brackets[-1] == 'dit':
+            infos['usual_name_is_in_birthnames'] = 0
+            max_index = len(names_in_brackets) - 1
+        
+        assert names_in_brackets[0] == infos['last_name']
+        
+        other_names = []
+        for i in xrange(1, max_index):
+            other_names.append(names_in_brackets[i])    
+            
+        infos['other_first_names'] = ','.join(other_names)
+    elif '(' in name_string:
+        # TODO
+        pass
+    
+    else:
+        # Every other first name, if any, are
+        # separated by commas after the usual first name
+        # Example: AUBERT Jeanne, Marie, Lucienne, épouse PICARD
+        other_names = []
+        for i, name in enumerate(names):
+            if 'épouse' in name:
+                break
+            other_names.append(name)
+        
+        infos['other_first_names'] = ','.join(other_names)
+        
+    if 'épouse' in name_string:
+        split = name_string.split('épouse')
+        married_name = split[1].strip()
+        infos['married_names'] = married_name
+        
+        
+        
+            
     return infos
 
 
