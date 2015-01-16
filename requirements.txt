@@ -2,3 +2,4 @@ beautifulsoup4==4.3.2
 requests==2.2.1
 pytest==2.6.4
 html5lib==1.0b3
+nltk==3.0.0
