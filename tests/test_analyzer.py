@@ -43,6 +43,14 @@ class AnalyzerTest(unittest.TestCase):
         self.assertEquals('PICARD', infos['married_names'])
         self.assertEquals('Marie,Lucienne', infos['other_first_names'])
         
+    def test_name_married_woman_birthname_first(self):
+        name_string = 'DUVAL Marie [DUVAL Germaine, Marie], épouse THOMAS'
+        infos = analyzer.extract_names_from_string(name_string)
+        self.assertEquals('DUVAL', infos['last_name'])
+        self.assertEquals('DUVAL', infos['birthname'])
+        self.assertEquals('THOMAS', infos['married_names'])
+        self.assertEquals('Germaine,Marie', infos['other_first_names'])
+        
         
     
 

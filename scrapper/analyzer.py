@@ -134,7 +134,9 @@ def extract_names_from_soup(soup):
 def extract_names_from_string(name_string):
     """ Extract name info from a name string 
     
-    
+    last_name: last name known for the person
+    birthname: last name given at birth (only for women)
+    married_names: last name(s) after marriages
     
     """
     names = name_string.split(' ')
@@ -149,7 +151,7 @@ def extract_names_from_string(name_string):
     # DURAND Jacques [DURAND Michel, Georges, dit]. 
     if '[' in name_string:
         in_brackets = name_string.split('[')[1]
-        names_in_brackets = in_brackets.replace(']','').replace(',','').split(' ')
+        names_in_brackets = in_brackets.split(']')[0].replace(',','').split(' ')
         
         max_index = len(names_in_brackets)
         if names_in_brackets[-1] == 'dit':
@@ -179,10 +181,14 @@ def extract_names_from_string(name_string):
         
         infos['other_first_names'] = ','.join(other_names)
         
+    if 'née' in name_string:
+        pass
+    
     if 'épouse' in name_string:
         split = name_string.split('épouse')
         married_name = split[1].strip()
         infos['married_names'] = married_name
+        infos['birthname'] = infos['last_name']
         
         
         
