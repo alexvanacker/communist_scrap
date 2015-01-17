@@ -51,7 +51,35 @@ class AnalyzerTest(unittest.TestCase):
         self.assertEquals('THOMAS', infos['married_names'])
         self.assertEquals('Germaine,Marie', infos['other_first_names'])
         
+    def test_name_married_husband_name_first(self):
+        name_string = 'DURAND Thérèse [née VIDAL Solange, Thérèse, Marguerite]'
+        infos = analyzer.extract_names_from_string(name_string)
+        self.assertEquals('VIDAL', infos['birthname'])
+        self.assertEquals('Solange,Thérèse,Marguerite', infos['other_first_names'])
         
+    def test_name_multiple_mariages(self):
+        name_string = 'MARTIN Simone, épouse TOUSSAINT, puis FABRE'
+        infos = analyzer.extract_names_from_string(name_string)
+        self.assertEquals('MARTIN', infos['last_name'])
+        self.assertEquals('MARTIN', infos['birthname'])
+        self.assertEquals('Simone', infos['usual_first_name'])
+        self.assertEquals('TOUSSAINT,FABRE', infos['married_names'])
+        
+    def test_another_woman_case(self):
+        name_string = 'THIBAULT Jacqueline [née VIDAL Jacqueline, Suzanne, épouse THIBAULT, puis TOUSSAINT]'
+        infos = analyzer.extract_names_from_string(name_string)
+        self.assertEquals('THIBAULT', infos['last_name'])
+        self.assertEquals('VIDAL', infos['birthname'])
+        self.assertEquals('THIBAULT,TOUSSAINT', infos['married_names'])
+        self.assertEquals('Jacqueline,Suzanne', infos['other_first_names'])
+        
+        
+    def test_name_pseudo(self):
+        name_string = 'MARTIN Jean. Pseudonyme dans la Résistance : DESCHAMPS Luc'
+        infos = analyzer.extract_names_from_string(name_string)
+        self.assertEquals('MARTIN', infos['last_name'])
+        self.assertEquals('Jean', infos['usual_first_name'])
+        self.assertEquals('DESCHAMPS Luc', infos['pseudos'])
     
 
 def main():

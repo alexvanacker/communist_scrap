@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import re
 import gzip
 import os.path as osp
 import os
@@ -142,26 +143,30 @@ def extract_names_from_string(name_string):
     names = name_string.split(' ')
     infos = {}
     infos['last_name'] = names[0]
-    infos['usual_first_name'] = names[1].replace(',', '')
+    infos['usual_first_name'] = names[1].replace(',', '').replace('.','')
     infos['usual_name_is_in_birthnames'] = 1
     names = names[2::]
     remove_commas = lambda x: x.replace(',','')
     names = map(remove_commas, names)
     
-    # DURAND Jacques [DURAND Michel, Georges, dit]. 
     if '[' in name_string:
         in_brackets = name_string.split('[')[1]
         names_in_brackets = in_brackets.split(']')[0].replace(',','').split(' ')
         
         max_index = len(names_in_brackets)
+        start_index = 1
         if names_in_brackets[-1] == 'dit':
             infos['usual_name_is_in_birthnames'] = 0
             max_index = len(names_in_brackets) - 1
-        
-        assert names_in_brackets[0] == infos['last_name']
+
+        if names_in_brackets[0].strip() == 'née':
+            infos['birthname'] = names_in_brackets[1]
+            start_index = 2
         
         other_names = []
-        for i in xrange(1, max_index):
+        for i in xrange(start_index, max_index):
+            if names_in_brackets[i] == 'épouse':
+                break
             other_names.append(names_in_brackets[i])    
             
         infos['other_first_names'] = ','.join(other_names)
@@ -180,18 +185,27 @@ def extract_names_from_string(name_string):
             other_names.append(name)
         
         infos['other_first_names'] = ','.join(other_names)
-        
+    
     if 'née' in name_string:
-        pass
+        married_names = [] 
+        married_names.append(infos['last_name'])
     
     if 'épouse' in name_string:
         split = name_string.split('épouse')
-        married_name = split[1].strip()
-        infos['married_names'] = married_name
-        infos['birthname'] = infos['last_name']
-        
-        
-        
+        married_names = split[1].strip()
+        married_names = married_names.split('puis')
+        married_names_array = []
+        for m in married_names:
+            married_names_array.append(m.replace(',','').replace(']','').replace(' ',''))
+        infos['married_names'] = ','.join(married_names_array)
+        if 'née' not in name_string:
+            infos['birthname'] = infos['last_name']
+            
+    # pseudos 
+    if 'Pseudo' in name_string:
+        split = name_string.split('Pseudonyme')
+        pseudonym_part = re.sub(r'.*:', '', split[1])
+        infos['pseudos'] = pseudonym_part.strip()
             
     return infos
 
