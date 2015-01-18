@@ -23,6 +23,7 @@ class_category = 'category'
 class_name = 'name'
 class_article = 'article'
 class_sources = 'sources'
+class_summary = 'summary'
           
 def extract_infos_from_file(filepath):
     ''' Extract infos from given person article
@@ -52,53 +53,11 @@ def extract_infos_from_file(filepath):
     # Testing encoding
     detected_encoding = soup.original_encoding
     
-    nom_notice = soup.find(class_=class_name)
+    # Name extraction    
+    infos.update(extract_names_from_soup(soup))
 
-    # Make one string only
-    full_name = ''.join(map(unicode, nom_notice.contents))
-
-    if '[' in full_name:
-        # Now parse:
-        #LAST_NAME First_name [LAST_NAME, first_name_1, ... <em> first_name </em>]
-        in_brackets = full_name.split('[')[1]
-        # Relace <em>
-        in_brackets = in_brackets.replace('<em>', '').replace('</em>', '')
-        # And split
-        names = map(lambda x: x.replace(',', ''), in_brackets.split(' '))
-        # Cleanup: remove empty string
-        while '' in names:
-            names.remove('')
-
-        # Now get the names, finally
-        last_name = names[0]
-        other_first_names = []
-        for i in range(1, len(names)-1):
-            other_first_names.append(names[i])
-        first_name = names[-1].replace(']', '')
-    else:
-        # Handle pseudonyms
-        if 'Pseudo' in full_name:
-            pseudos_split = full_name.split('Pseudonymes')
-            full_name = pseudos_split[0]
-            pseudos = pseudos_split[1]
-            pseudos = pseudos.split(':')[1].strip()
-            pseudos =pseudos.split(',')
-            for i, pseudo in enumerate(pseudos):
-                infos['pseudo_'+str(i)] = pseudo
-            
-        names = map(lambda x: x.replace(',', ''), full_name.split(' '))
-        last_name = names[0]
-        first_name = names[1]
-        other_first_names = []
-        for i in names[2::]:
-            other_first_names.append(i)
-
-    infos['last_name'] = last_name
-    infos['first_name'] = first_name
-    infos['other_first_names'] = ' '.join(other_first_names)
+    # Summary analysis
     
-    print str(infos)
-
 
     # # First paragraph: extract some data, like birthdate, place, date of death
     # notice = soup.find(class_='notice')
@@ -122,6 +81,13 @@ def extract_infos_from_file(filepath):
     return infos
 
 
+def analyze_summary(soup):
+    """ Extracts info from the summary """
+    logger.debug("Analyzing summary...")
+    summary = soup.find(class_=class_summary)
+    print summary
+    
+
 def extract_names_from_soup(soup):
     """ Extract name infos from the full article
     """
@@ -140,6 +106,7 @@ def extract_names_from_string(name_string):
     married_names: last name(s) after marriages
     
     """
+    name_string = unicode(name_string, 'utf-8')
     names = name_string.split(' ')
     infos = {}
     infos['last_name'] = names[0]
@@ -148,6 +115,10 @@ def extract_names_from_string(name_string):
     names = names[2::]
     remove_commas = lambda x: x.replace(',','')
     names = map(remove_commas, names)
+    
+    # Much unicode
+    epouse = u'épouse'
+    nee = u'née'
     
     if '[' in name_string:
         in_brackets = name_string.split('[')[1]
@@ -159,13 +130,13 @@ def extract_names_from_string(name_string):
             infos['usual_name_is_in_birthnames'] = 0
             max_index = len(names_in_brackets) - 1
 
-        if names_in_brackets[0].strip() == 'née':
+        if names_in_brackets[0].strip() == nee:
             infos['birthname'] = names_in_brackets[1]
             start_index = 2
         
         other_names = []
         for i in xrange(start_index, max_index):
-            if names_in_brackets[i] == 'épouse':
+            if names_in_brackets[i] == epouse:
                 break
             other_names.append(names_in_brackets[i])    
             
@@ -180,25 +151,25 @@ def extract_names_from_string(name_string):
         # Example: AUBERT Jeanne, Marie, Lucienne, épouse PICARD
         other_names = []
         for i, name in enumerate(names):
-            if 'épouse' in name:
+            if epouse in name:
                 break
             other_names.append(name)
         
         infos['other_first_names'] = ','.join(other_names)
     
-    if 'née' in name_string:
+    if nee in name_string:
         married_names = [] 
         married_names.append(infos['last_name'])
     
-    if 'épouse' in name_string:
-        split = name_string.split('épouse')
+    if epouse in name_string:
+        split = name_string.split(epouse)
         married_names = split[1].strip()
-        married_names = married_names.split('puis')
+        married_names = married_names.split(u'puis')
         married_names_array = []
         for m in married_names:
             married_names_array.append(m.replace(',','').replace(']','').replace(' ',''))
         infos['married_names'] = ','.join(married_names_array)
-        if 'née' not in name_string:
+        if nee not in name_string:
             infos['birthname'] = infos['last_name']
             
     # pseudos 
