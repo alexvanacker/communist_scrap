@@ -22,6 +22,11 @@ class AnalyzerTest(unittest.TestCase):
         
     def tearDown(self):
         shutil.rmtree(self.tmp_folder_path)
+        
+    def test_only_last_name(self):
+        name_string = 'AGUINALIN'
+        infos = analyzer.extract_names_from_string(name_string)
+        self.assertEquals(u'AGUINALIN', infos['last_name'])
 
     def test_name_simple(self):
         name_string = 'DUPONT Marcel [DUPONT Albert, Marcel, Félix]'

@@ -114,11 +114,12 @@ def extract_names_from_string(name_string):
     names = name_string.split(' ')
     infos = {}
     infos['last_name'] = names[0]
-    infos['usual_first_name'] = names[1].replace(',', '').replace('.','')
-    infos['usual_name_is_in_birthnames'] = 1
-    names = names[2::]
-    remove_commas = lambda x: x.replace(',','')
-    names = map(remove_commas, names)
+    if len(names) > 1:
+        infos['usual_first_name'] = names[1].replace(',', '').replace('.','')
+        infos['usual_name_is_in_birthnames'] = 1
+        names = names[2::]
+        remove_commas = lambda x: x.replace(',','')
+        names = map(remove_commas, names)
     
     # Much unicode
     epouse = u'épouse'
