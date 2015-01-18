@@ -94,7 +94,7 @@ def extract_names_from_soup(soup):
     logger.debug('Extracting names...')
     name_tag = soup.find(class_=class_name)
     # Make one string only
-    full_name = ''.join(map(unicode, name_tag.contents))
+    full_name = ''.join(name_tag.contents)
     return extract_names_from_string(full_name)
 
 
@@ -106,7 +106,11 @@ def extract_names_from_string(name_string):
     married_names: last name(s) after marriages
     
     """
-    name_string = unicode(name_string, 'utf-8')
+    try:
+        # Input can already be unicode, so try/except block
+        name_string = unicode(name_string, 'utf-8')
+    except:
+        pass
     names = name_string.split(' ')
     infos = {}
     infos['last_name'] = names[0]
